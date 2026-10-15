@@ -1,0 +1,15 @@
+[Unit]
+Description=Sony Music Center Web
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/sony-music-center-web
+ExecStart=%h/sony-music-center-web/.venv/bin/python %h/sony-music-center-web/app.py
+Environment=PYTHONUNBUFFERED=1
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

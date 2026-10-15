@@ -1,0 +1,36 @@
+# Machine-specific settings and credentials
+config.json
+config.*.local.json
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.aws/
+.codex/
+.agents/
+
+# User data, generated audio, bundled third-party binaries and archives
+/data/
+/playlists/
+/cache/
+/.tools/
+/.local-backups/
+*.log
+*.backup*
+*.bak
+
+# Python and editors
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+build/
+dist/
+.vscode/
+.idea/
+.DS_Store

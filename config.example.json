@@ -1,0 +1,10 @@
+{
+  "sony_ip": "192.168.1.100",
+  "sony_port": 8080,
+  "server_ip": "192.168.1.50",
+  "web_port": 8088,
+  "music_root": "~/Music",
+  "state_dir": ".",
+  "bind_host": "0.0.0.0",
+  "ffmpeg_binary": null
+}

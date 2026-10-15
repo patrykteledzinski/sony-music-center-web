@@ -1,0 +1,2 @@
+-r requirements-media.txt
+quickjs==1.19.4
