@@ -44,3 +44,35 @@ drugiej usługi na tym samym porcie.
 
 Zmiany ustawień wymagają restartu aplikacji. Zapisane radio i playlisty są
 w `state_dir`; zachowaj ten katalog przy aktualizacji lub zmianie lokalizacji.
+
+### Automatyczne odnajdywanie Sony
+
+Po błędzie połączenia panel szuka urządzenia przez SSDP/UPnP (maksymalnie raz
+na 30 sekund). Zapamiętuje identyfikator UDN w `data/sony_device.json`, aby
+po zmianie IP połączyć się z tym samym zestawem. Gdy identyfikator nie jest
+jeszcze znany, akceptuje tylko jednoznacznie wykryty CMT-MX700Ni/MX750Ni.
+Nowy adres i port zapisuje w aktywnym pliku konfiguracji; pozostałe ustawienia
+są zachowane. Przy nadpisaniu adresu zmiennymi `SONY_WEB_SONY_IP` lub
+`SONY_WEB_SONY_PORT` zmiana obowiązuje tylko w bieżącym procesie.
+
+Odczyt stanu po odnalezieniu urządzenia jest ponawiany automatycznie. Komendy
+sterujące nie są ponawiane, ponieważ urządzenie mogło je wykonać przed utratą
+odpowiedzi; w takim przypadku należy ponowić żądaną czynność w panelu.
+Wykrywanie wymaga dostępnego multicastu UDP 239.255.255.250:1900 w sieci lokalnej.
+
+### Odnajdywanie Volumio
+
+Aby włączyć monitor, ustaw `volumio_ip` i opcjonalnie `volumio_port` (domyślnie
+80) w `config.json`; dostępne są też `SONY_WEB_VOLUMIO_IP` i
+`SONY_WEB_VOLUMIO_PORT`. Bez `volumio_ip` monitor jest wyłączony.
+Co 30 sekund panel sprawdza API Volumio. Po utracie połączenia wyszukuje
+adresy urządzeń UPnP i weryfikuje API oraz stałe `id` Volumio.
+Nowy adres zapisuje w `data/volumio_device.json` razem z identyfikatorem;
+korzysta z niego także po restarcie. Plik ten ma pierwszeństwo przed
+początkowym adresem z konfiguracji. Aby wybrać inne Raspberry Pi, usuń
+ten plik, ustaw nowy adres i uruchom usługę ponownie.
+
+Stan i aktualny link do Volumio pojawiają się u góry panelu, a dane JSON
+są dostępne pod `/api/volumio/status`. Monitor działa w osobnym wątku
+i nie blokuje sterowania Sony. Wykrywanie wymaga dostępnego SSDP multicast
+w sieci lokalnej i włączonego ogłaszania renderera UPnP przez Volumio.

@@ -1,0 +1,22 @@
+[Unit]
+Description=Standalone YouTube audio for Volumio
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+RootDirectory=/data/youtube-standalone/runtime
+WorkingDirectory=/app
+User=volumio
+Group=volumio
+Environment=HOME=/app
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 /app/service.py
+Restart=on-failure
+RestartSec=5
+KillMode=control-group
+TimeoutStopSec=10
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

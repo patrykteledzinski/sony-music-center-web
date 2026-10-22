@@ -1,0 +1,193 @@
+{
+  "input": "/mnt/dysk4TB/UPDATA_11X014/BD11-VUD.BIN",
+  "bytes": 50421760,
+  "sha256": "30a55879ca71f61e8ccd717adb570e01abed86edc2644d246259f1e905bea1cd",
+  "complete_unpack": false,
+  "decryption_proven": false,
+  "carved": {
+    "header": [
+      0,
+      188
+    ],
+    "descriptor": [
+      188,
+      212
+    ],
+    "opaque_payload": [
+      212,
+      50421760
+    ]
+  },
+  "header_be32": [
+    "0x73636673",
+    "0x73636673",
+    "0x0",
+    "0x0",
+    "0x0",
+    "0x1031010",
+    "0x17",
+    "0x47798280",
+    "0x1",
+    "0x80040100",
+    "0xbc",
+    "0x0",
+    "0x18",
+    "0x0",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0x0",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0x1f4",
+    "0xd8",
+    "0x10000000"
+  ],
+  "signatures": {
+    "ELF": [],
+    "SquashFS_LE": [],
+    "SquashFS_BE": [],
+    "RSA_OID": [],
+    "PKCS1_SHA256_OID": [],
+    "PEM_key": [],
+    "SCFS": [
+      0,
+      4,
+      188,
+      45555076
+    ]
+  },
+  "command_hits": {
+    "PARTY": [],
+    "Party_Control": [],
+    "X_GetDeviceInfo": [],
+    "X_Invite": [],
+    "X_Entry": [],
+    "X_Start": [],
+    "ListenerSessionID": [],
+    "SingerSessionID": [],
+    "TransportPort": [],
+    "schemas-sony-com:service:Party": []
+  },
+  "entropy": [
+    {
+      "offset": 0,
+      "bits_per_byte": 7.99691021564443
+    },
+    {
+      "offset": 4096,
+      "bits_per_byte": 7.992929465425096
+    },
+    {
+      "offset": 1048576,
+      "bits_per_byte": 7.997187269775416
+    },
+    {
+      "offset": 25210880,
+      "bits_per_byte": 7.9973187880788155
+    },
+    {
+      "offset": 50356224,
+      "bits_per_byte": 7.967701538003399
+    }
+  ],
+  "plugin_id_hypothesis": [
+    {
+      "offset": 32,
+      "value": "0x1",
+      "function": 0,
+      "major": 0,
+      "interface": 0,
+      "minor": 1,
+      "note": "Official plugin bit layout; header field semantics not confirmed"
+    },
+    {
+      "offset": 36,
+      "value": "0x80040100",
+      "function": 2,
+      "major": 4,
+      "interface": 1,
+      "minor": 0,
+      "note": "Official plugin bit layout; header field semantics not confirmed"
+    }
+  ],
+  "utf16_command_hits": {
+    "PARTY": {
+      "utf-16le": [],
+      "utf-16be": []
+    },
+    "Party_Control": {
+      "utf-16le": [],
+      "utf-16be": []
+    },
+    "X_GetDeviceInfo": {
+      "utf-16le": [],
+      "utf-16be": []
+    },
+    "X_Invite": {
+      "utf-16le": [],
+      "utf-16be": []
+    },
+    "X_Entry": {
+      "utf-16le": [],
+      "utf-16be": []
+    },
+    "X_Start": {
+      "utf-16le": [],
+      "utf-16be": []
+    },
+    "ListenerSessionID": {
+      "utf-16le": [],
+      "utf-16be": []
+    },
+    "SingerSessionID": {
+      "utf-16le": [],
+      "utf-16be": []
+    },
+    "TransportPort": {
+      "utf-16le": [],
+      "utf-16be": []
+    },
+    "schemas-sony-com:service:Party": {
+      "utf-16le": [],
+      "utf-16be": []
+    }
+  },
+  "embedded_zlib": {
+    "candidates": 50673,
+    "validated_streams": []
+  },
+  "decoded_id_fields": [
+    "bdp4g",
+    "11.2.014",
+    "1f021119.b.e.0.9"
+  ],
+  "zlib_probes": {
+    "header_candidate_attempts": 11,
+    "validated_streams": []
+  }
+}

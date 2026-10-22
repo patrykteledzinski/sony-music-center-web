@@ -1,0 +1,9 @@
+[package]
+name = "sony-rsa-probe"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+rsa = "=0.9.8"
+serde_json = "1"

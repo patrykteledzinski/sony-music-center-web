@@ -1,0 +1,5 @@
+{
+  "rationale": "0x6b8b4567 matches first glibc rand() output with default seed; hypothesis only",
+  "attempts": 144,
+  "validated_zlib_streams": []
+}

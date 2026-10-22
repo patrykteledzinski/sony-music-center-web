@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#111413"><title>Studio · Volumio × Sony</title>
+<link rel="stylesheet" href="studio.css?v=20261022-v2">
+</head>
+<body>
+<a class="mobile-classic-switch" href="/?classic=1">Standardowy widok Volumio <span aria-hidden="true">↗</span></a>
+<div class="shell">
+<aside class="sidebar">
+<a class="brand" href="./" aria-label="Studio — strona główna"><span class="brandmark">s<span>▪</span></span><span>studio<span class="brand-dot">.</span></span></a>
+<div class="sidebar-caption">TWOJA PRZESTRZEŃ DŹWIĘKU</div>
+<nav aria-label="Widoki">
+<button class="nav-item active" data-view="now"><span>◉</span> Teraz gra</button>
+<button class="nav-item" data-view="library"><span>▤</span> Biblioteka</button>
+<button class="nav-item" data-view="queue"><span>☷</span> Kolejka <span id="queue-count" class="count">0</span></button>
+</nav>
+<div class="sidebar-bottom"><div class="connection"><span class="dot" id="connection-dot"></span><span id="connection-label">Łączenie z Volumio</span></div><a href="/?classic=1">Oryginalny interfejs <span>↗</span></a></div>
+</aside>
+<main>
+<header><div class="breadcrumb">VOL<span class="muted">UMIO</span> <span class="slash">/</span> SONY MUSIC CENTER</div><div class="header-right"><span class="live-dot"></span> TWOJE DOMOWE STUDIO</div></header>
+<div class="group-bar"><label><input id="group-enabled" type="checkbox"> Graj razem (test) <span>Sony + Volumio</span></label><span id="group-message">Sony prowadzi · synchronizacja przybliżona</span></div>
+<p class="group-help">Utwory wybieraj w Sony. Tryb zastępuje kolejkę Volumio. Możliwe echo.</p>
+<section id="view-now" class="view">
+<div class="section-heading"><div><p class="eyebrow">ZWOLNIJ. POSŁUCHAJ.</p><h1>Dobry moment na muzykę<span>.</span></h1></div><span class="device-tag">RASPBERRY PI <span>03</span></span></div>
+<div class="listening-grid">
+<article class="player-card">
+<div class="artwork-wrap"><div class="artwork" id="artwork"><div class="art-fallback"><div class="vinyl"><i></i></div><span>THE SOUND OF YOUR SPACE</span></div><img id="cover" alt="Okładka bieżącego albumu" hidden></div><span class="art-badge"><span class="live-dot"></span> VOLUMIO</span></div>
+<div class="track-heading"><div><p class="eyebrow" id="source-label">TWÓJ ODTWARZACZ</p><h2 id="track-title">Wybierz swój dźwięk</h2><p id="track-artist">Muzyka zaczyna się tutaj.</p></div><button id="open-queue" class="icon-button" aria-label="Pokaż kolejkę">☷</button></div>
+<div class="progress"><input id="seek" type="range" min="0" max="100" value="0" aria-label="Pozycja odtwarzania" disabled><div class="time-row"><span id="elapsed">0:00</span><span><button id="seek-back" class="seek-jump" aria-label="Cofnij o 10 sekund" disabled>−10 s</button><button id="seek-forward" class="seek-jump" aria-label="Przewiń o 10 sekund" disabled>+10 s</button></span><span id="duration">—</span></div></div>
+<p id="seek-status" class="seek-status" role="status" aria-live="polite"></p>
+<div class="transport"><button id="shuffle" class="icon-button" aria-label="Losowa kolejność" aria-pressed="false" data-control>⤨</button><div class="main-controls"><button id="prev" class="icon-button skip" aria-label="Poprzedni utwór" data-control>Ⅰ◀</button><button id="play" class="play-button" aria-label="Odtwórz" data-control>▶</button><button id="next" class="icon-button skip" aria-label="Następny utwór" data-control>▶Ⅰ</button></div><button id="repeat" class="icon-button" aria-label="Powtarzanie" aria-pressed="false" data-control>↻</button></div>
+<div class="player-footer"><span id="audio-format">GOTOWY DO ODSŁUCHU</span><div class="volume"><button id="mute" class="icon-button" aria-label="Wycisz" data-control>◖))</button><input id="volume" type="range" min="0" max="100" value="0" aria-label="Głośność Volumio" data-control><span id="volume-value">—</span></div></div>
+</article>
+<div class="right-column">
+<article class="sony-card"><div class="card-label"><span><span class="live-dot" id="sony-dot"></span> DRUGA STREFA</span><span class="small-tag">SONY</span></div><div class="sony-art"><img id="sony-cover" alt="Okładka utworu na Sony" hidden><span id="sony-art-fallback">♫</span><div class="equalizer" id="sony-equalizer"><i></i><i></i><i></i><i></i><i></i></div></div><p class="eyebrow">SONY MUSIC CENTER</p><h3 id="sony-title">Łączenie z Sony…</h3><p class="secondary" id="sony-artist">Twój drugi punkt odsłuchu</p><div class="sony-progress"><div id="sony-progress-fill"></div></div><div class="time-row"><span id="sony-state">Sprawdzanie połączenia</span><span id="sony-volume">—</span></div><a id="sony-link" class="text-link" href="http://192.168.8.50:8088/" target="_blank" rel="noopener">Otwórz Sony Music Center <span>↗</span></a></article>
+<article class="up-next-card"><div class="card-label"><span>DALEJ W KOLEJCE</span><button class="text-button" id="all-queue">Zobacz wszystko ↗</button></div><div id="up-next" class="up-next"><span class="empty-small">Tutaj pojawią się kolejne utwory.</span></div></article>
+</div>
+</div>
+<div class="bottom-caption"><span>MNIEJ SZUMU. WIĘCEJ MUZYKI.</span><span>VOLUMIO × SONY <span class="mint">●</span></span></div>
+</section>
+<section id="view-library" class="view" hidden><div class="section-heading"><div><p class="eyebrow">WSZYSTKO, CO LUBISZ</p><h1>Twoja biblioteka<span>.</span></h1></div></div><div class="browser-toolbar"><button id="browse-back" class="pill-button">← Wstecz</button><button id="browse-home" class="pill-button">Źródła</button><span id="browse-location">Źródła muzyki</span></div><p class="secondary">Pliki z serwera znajdziesz w Media Servers → serverek: minidlna.</p><div id="library-items" class="library-items" aria-live="polite"></div></section>
+<section id="view-queue" class="view" hidden><div class="section-heading"><div><p class="eyebrow">NIECH GRA DALEJ</p><h1>Twoja kolejka<span>.</span></h1></div><span class="device-tag" id="queue-total">0 UTWORÓW</span></div><div id="queue-items" class="queue-items"></div></section>
+<footer>STUDIO <span>Dom jest tam, gdzie dobrze brzmi.</span><button id="settings-button" class="text-button">Połączenie z Sony</button></footer>
+</main>
+</div>
+<dialog id="settings-dialog"><form id="settings-form"><p class="eyebrow">TWOJE URZĄDZENIA</p><h2>Połączenie z Sony</h2><label for="sony-address">Adres Sony Music Center</label><input id="sony-address" type="url" required placeholder="http://192.168.8.50:8088"><p class="secondary">Adres panelu działającego na serwerze. Ustawienie jest zapisywane w tej przeglądarce.</p><div class="dialog-actions"><button type="button" id="cancel-settings" class="pill-button">Anuluj</button><button class="pill-button primary">Zapisz</button></div></form></dialog>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<script src="socket.io.min.js"></script><script src="studio-seek.js?v=20261022-v2"></script><script src="studio.js?v=20261022-v2"></script>
+</body></html>

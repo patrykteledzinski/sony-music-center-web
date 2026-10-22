@@ -12,6 +12,8 @@ import xml.etree.ElementTree as ET
 import html
 import json
 import mimetypes
+import subprocess
+import os
 import re
 import threading
 import time
@@ -19,6 +21,10 @@ import uuid
 import math
 import hashlib
 
+from sony_youtube import YouTubeResolver
+from sony_group import GroupPlayback, VolumioAPI
+from volumio_discovery import VolumioMonitor
+from sony_discovery import SonyEndpoint
 from sony_config import load_settings
 from sony_seek import SeekCache
 from sony_queue import QueueFollower
@@ -64,11 +70,21 @@ PLAYLIST_DIR.mkdir(parents=True, exist_ok=True)
 queue_lock = threading.RLock()
 play_lock = threading.RLock()
 seek_cache = SeekCache(APP_DIR / "cache/seek", PROJECT_DIR, settings.ffmpeg_binary)
-party_client = PartyClient(SONY_BASE)
+sony_config_file = Path(os.environ.get("SONY_WEB_CONFIG", "config.json")).expanduser()
+if not sony_config_file.is_absolute():
+    sony_config_file = PROJECT_DIR / sony_config_file
+sony_endpoint = SonyEndpoint(
+    SONY_BASE, DATA_DIR / "sony_device.json", sony_config_file, app.logger,
+)
+party_client = PartyClient(SONY_BASE, opener=sony_endpoint.open)
 browser_cache = SeekCache(APP_DIR / "cache/browser", PROJECT_DIR, settings.ffmpeg_binary)
 browser_audio_lock = threading.RLock()
 queue_follower = QueueFollower()
 queue_monitor_stop = threading.Event()
+volumio_monitor = VolumioMonitor(
+    f"http://{settings.volumio_ip}:{settings.volumio_port}" if settings.volumio_ip else None,
+    DATA_DIR / "volumio_device.json", app.logger,
+)
 
 # Stan kolejki zarządzanej przez panel.
 queue_state = {
@@ -223,7 +239,7 @@ def soap(service, action, body="", timeout=4):
     )
 
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as response:
+        with sony_endpoint.open(req, timeout=timeout) as response:
             return response.read().decode("utf-8", errors="replace")
     except urllib.error.HTTPError as exc:
         details = exc.read().decode("utf-8", errors="replace")
@@ -1238,6 +1254,216 @@ def api_radio_delete(station_id):
         ), 400
 
 
+group_playlists = {}
+group_playlists_lock = threading.Lock()
+
+
+def group_playlist_url(uri):
+    # Volumio 2's HTTP service first calls MPD load: give it a small playlist,
+    # never a multi-hour audio file to parse as playlist data.
+    token = hashlib.sha256(uri.encode()).hexdigest()
+    with group_playlists_lock:
+        group_playlists[token] = uri
+        while len(group_playlists) > 16:
+            del group_playlists[next(iter(group_playlists))]
+    return f"http://{SERVER_IP}:{WEB_PORT}/group-playlist/{token}.m3u"
+
+
+@app.get("/group-playlist/<token>.m3u")
+def group_playlist(token):
+    with group_playlists_lock:
+        uri = group_playlists.get(token)
+    if not uri:
+        abort(404)
+    return Response("#EXTM3U\n" + uri + "\n", mimetype="audio/x-mpegurl",
+                    headers={"Cache-Control": "no-store"})
+
+
+group_playback = GroupPlayback(sony_status, local_playback_context,
+                               VolumioAPI(volumio_monitor), app.logger, group_playlist_url)
+
+
+def group_origin_allowed():
+    origin = request.headers.get("Origin")
+    if not origin:
+        return True
+    def address(value):
+        parsed = urlparse(value)
+        return parsed.scheme, parsed.hostname, parsed.port or (443 if parsed.scheme == "https" else 80)
+    return address(origin) in (address(request.host_url),
+                              address(volumio_monitor.snapshot().get("url") or ""))
+
+
+@app.route("/api/group", methods=["GET", "POST", "OPTIONS"])
+def api_group():
+    if request.method == "GET":
+        response = jsonify(group_playback.snapshot())
+        response.headers["Access-Control-Allow-Origin"] = "*"
+    else:
+        if not group_origin_allowed():
+            return jsonify(ok=False, error="Niedozwolone źródło żądania"), 403
+        if request.method == "OPTIONS":
+            response = app.make_response(("", 204))
+        else:
+            data = request.get_json(silent=True)
+            if not isinstance(data, dict) or not isinstance(data.get("enabled"), bool):
+                return jsonify(ok=False, error="Nieprawidłowy stan checkboxa"), 400
+            try:
+                response = jsonify(group_playback.set_enabled(data["enabled"]))
+            except Exception as exc:
+                response = jsonify(ok=False, error=str(exc))
+                response.status_code = 502
+        if request.headers.get("Origin"):
+            response.headers["Access-Control-Allow-Origin"] = request.headers["Origin"]
+            response.headers["Vary"] = "Origin"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.route("/api/group/control/<action>", methods=["POST", "OPTIONS"])
+def api_group_control(action):
+    if not group_origin_allowed():
+        return jsonify(ok=False, error="Niedozwolone źródło żądania"), 403
+    if request.method == "OPTIONS":
+        response = app.make_response(("", 204))
+    elif not group_playback.snapshot()["enabled"]:
+        response = jsonify(ok=False, error="Najpierw włącz Graj razem")
+        response.status_code = 409
+    elif action in ("play", "pause", "stop", "next", "prev"):
+        response = app.make_response(api_control(action))
+    elif action == "seek":
+        response = app.make_response(api_seek())
+    else:
+        response = jsonify(ok=False, error="W trybie Graj razem wybierz utwór w bibliotece Sony")
+        response.status_code = 400
+    if request.headers.get("Origin"):
+        response.headers["Access-Control-Allow-Origin"] = request.headers["Origin"]
+        response.headers["Vary"] = "Origin"
+    response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    return response
+
+
+youtube_resolver = YouTubeResolver(PROJECT_DIR)
+
+
+@app.get("/api/youtube/info/<video_id>")
+def api_youtube_info(video_id):
+    try:
+        info = youtube_resolver.resolve(video_id)
+        # Old MPD cannot reliably consume current Google HTTPS/AAC streams.
+        # Keep extraction private; hand Volumio one local MP3 stream instead.
+        audio = dict(info["formats"][0],
+                     url=f"http://{SERVER_IP}:{WEB_PORT}/youtube-audio/{video_id}.mp3",
+                     mimeType='audio/mpeg; codecs="mp3"', container="mp3", codecs="mp3",
+                     audioCodec="mp3", audioBitrate=192, bitrate=192000, contentLength="")
+        return jsonify(dict(info, formats=[audio]))
+    except ValueError as exc:
+        return jsonify(ok=False, error=str(exc)), 400
+    except Exception as exc:
+        app.logger.warning("Resolver YouTube: %s", exc)
+        return jsonify(ok=False, error=str(exc)), 502
+
+
+youtube_stream_slots = threading.BoundedSemaphore(2)
+
+
+@app.route("/youtube-audio/<video_id>.mp3", methods=["GET", "HEAD"])
+def youtube_audio(video_id):
+    if not re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id):
+        abort(400)
+    if request.method == "HEAD":
+        return Response(mimetype="audio/mpeg", headers={"Cache-Control": "no-store"})
+    if not youtube_stream_slots.acquire(blocking=False):
+        return jsonify(ok=False, error="Zbyt wiele strumieni YouTube"), 429
+    source = None
+    try:
+        info = youtube_resolver.resolve(video_id)
+        # The bundled FFmpeg crashes in its HTTPS transport. Python handles TLS;
+        # FFmpeg receives only audio bytes through a pipe.
+        source = urllib.request.urlopen(info["formats"][0]["url"], timeout=15)
+        command = [seek_cache.ffmpeg(), "-nostdin", "-hide_banner", "-loglevel", "error",
+                   "-re", "-i", "pipe:0", "-vn", "-ac", "2", "-ar", "44100",
+                   "-codec:a", "libmp3lame", "-b:a", "192k", "-flush_packets", "1",
+                   "-f", "mp3", "pipe:1"]
+        process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                   stderr=subprocess.DEVNULL)
+    except Exception as exc:
+        if source is not None:
+            source.close()
+        youtube_stream_slots.release()
+        app.logger.warning("Strumień YouTube: %s", exc)
+        return jsonify(ok=False, error="Nie udało się uruchomić strumienia YouTube"), 502
+
+    def feed_audio():
+        try:
+            while process.poll() is None:
+                data = source.read(16384)
+                if not data:
+                    break
+                process.stdin.write(data)
+                process.stdin.flush()
+        except (OSError, ValueError):
+            pass
+        finally:
+            try:
+                process.stdin.close()
+            except (OSError, ValueError):
+                pass
+            source.close()
+
+    threading.Thread(target=feed_audio, name="youtube-audio-feed", daemon=True).start()
+    cleanup_lock = threading.Lock()
+    cleaned = False
+
+    def cleanup():
+        nonlocal cleaned
+        with cleanup_lock:
+            if cleaned:
+                return
+            cleaned = True
+            if process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait()
+            source.close()
+            process.stdout.close()
+            youtube_stream_slots.release()
+
+    def stream():
+        try:
+            while True:
+                chunk = process.stdout.read(4096)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            cleanup()
+
+    response = Response(stream(), mimetype="audio/mpeg", headers={"Cache-Control": "no-store"})
+    response.call_on_close(cleanup)
+    return response
+
+
+@app.get("/api/studio/status")
+def api_studio_status():
+    """Read-only Sony preview for the separate Volumio Studio interface."""
+    response = jsonify(sony_status())
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.get("/api/volumio/status")
+def api_volumio_status():
+    return jsonify(volumio_monitor.snapshot())
+
+
 @app.get("/api/status")
 def api_status():
     status = sony_status()
@@ -2231,6 +2457,16 @@ select,
     <div class="online" id="online">Łączenie…</div>
 </header>
 
+<div id="volumio-status" class="online" hidden style="margin: 0 0 12px">
+    <a id="volumio-link" target="_blank" rel="noopener">Volumio</a>
+    <span id="volumio-state"></span>
+</div>
+
+<div style="margin:12px 0 20px;line-height:1.6">
+<label><input type="checkbox" id="group-enabled"> Graj razem (test) · Sony + Volumio</label>
+<small style="display:block;opacity:.7">Utwory wybieraj w Sony. Tryb zastępuje kolejkę Volumio. Możliwe echo.</small>
+<small id="group-message" style="display:block;opacity:.7">Sony prowadzi · synchronizacja przybliżona</small>
+</div>
 <div class="grid">
 
 <aside>
@@ -2532,6 +2768,40 @@ function fmt(seconds) {
     return h
         ? `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`
         : `${m}:${String(s).padStart(2,"0")}`;
+}
+
+let groupBusy = false;
+async function refreshGroup() {
+    if (groupBusy) return;
+    try {
+        const status = await api("/api/group");
+        document.getElementById("group-enabled").checked = status.enabled;
+        document.getElementById("group-message").textContent = status.error || status.message
+            + (status.drift_seconds !== null ? ` · różnica pozycji ${status.drift_seconds.toFixed(1)} s` : "");
+    } catch(error) { document.getElementById("group-message").textContent = "Brak stanu wspólnego grania"; }
+}
+document.getElementById("group-enabled").addEventListener("change", async event => {
+    groupBusy = true; event.target.disabled = true;
+    try { await api("/api/group", {method:"POST", body:{enabled:event.target.checked}}); }
+    catch(error) { alert(error.message); }
+    finally { groupBusy = false; event.target.disabled = false; refreshGroup(); }
+});
+refreshGroup();
+setInterval(refreshGroup, 3000);
+
+async function refreshVolumio() {
+    try {
+        const status = await api("/api/volumio/status");
+        document.getElementById("volumio-status").hidden = !status.enabled;
+        const link = document.getElementById("volumio-link");
+        link.href = status.url || "#";
+        link.textContent = status.name || "Volumio";
+        document.getElementById("volumio-state").textContent = status.online
+            ? ` ● online · ${new URL(status.url).hostname}`
+            : " ○ offline · automatyczne wyszukiwanie";
+    } catch (error) {
+        document.getElementById("volumio-state").textContent = " — brak aktualnego stanu";
+    }
 }
 
 async function refreshStatus() {
@@ -3492,6 +3762,8 @@ loadRadio();
 refreshStatus();
 
 refreshParty();
+refreshVolumio();
+setInterval(refreshVolumio, 10000);
 setInterval(refreshParty, 10000);
 setInterval(refreshStatus, 2500);
 setInterval(loadQueue, 10000);
@@ -3518,6 +3790,12 @@ if __name__ == "__main__":
     print(f"Muzyka:    {MUSIC_ROOT}")
     print(f"Panel WWW: http://{SERVER_IP}:{WEB_PORT}")
     print("")
+
+    threading.Thread(target=volumio_monitor.run, args=(queue_monitor_stop,),
+                     name="volumio-monitor", daemon=True).start()
+    threading.Thread(target=group_playback.run, args=(queue_monitor_stop,),
+                     name="group-playback", daemon=True).start()
+    sony_endpoint.remember()
 
     threading.Thread(target=queue_monitor_loop, name="sony-queue-monitor", daemon=True).start()
 

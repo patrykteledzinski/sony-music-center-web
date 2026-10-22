@@ -19,8 +19,9 @@ class PartyConflict(PartyError):
 
 
 class PartyClient:
-    def __init__(self, base_url, timeout=4):
+    def __init__(self, base_url, timeout=4, opener=None):
         self.url = base_url.rstrip('/') + '/Party_Control'
+        self.opener = opener
         self.timeout = timeout
         self.lock = threading.RLock()
 
@@ -42,7 +43,7 @@ class PartyClient:
         )
         http_error = None
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as response:
+            with (self.opener or urllib.request.urlopen)(req, timeout=self.timeout) as response:
                 payload = response.read(1024 * 1024)
         except urllib.error.HTTPError as exc:
             http_error = exc.code

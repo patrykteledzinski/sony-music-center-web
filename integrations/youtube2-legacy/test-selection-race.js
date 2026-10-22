@@ -1,0 +1,20 @@
+'use strict';
+Promise.prototype.fail=Promise.prototype.catch;
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const pending={},played=[],toasts=[];
+const mpd={parseTrackInfo(){return {};}};
+const machine={getState(){return {position:0};}};
+const yt2={getMpdPlugin(){return mpd;},getStateMachine(){return machine;},getLogger(){return {info(){},error(){}};},getConfigValue(){return false;},toast(){toasts.push(Array.from(arguments));}};
+const helper={getPlaybackInfo(id){return new Promise((resolve,reject)=>{pending[id]={resolve,reject};});}};
+const mod={exports:{}};
+vm.runInNewContext(fs.readFileSync(__dirname+'/play-controller.js','utf8'),{module:mod,yt2PluginLibRoot:'/plugin',require(name){if(name==='kew')return {resolve:Promise.resolve.bind(Promise),reject:Promise.reject.bind(Promise)};if(name==='/plugin/youtube2')return yt2;if(name==='/plugin/helper/video')return helper;throw new Error(name);}});
+const player=new mod.exports();
+assert.strictEqual(mpd.parseTrackInfo({}).trackType,'');
+player._doPlay=(url,track)=>{played.push(track.uri);return Promise.resolve();};
+const a=player.clearAddPlayTrack({uri:'youtube2/video@videoId=abcdefghijk'});
+const b=player.clearAddPlayTrack({uri:'youtube2/video@videoId=ABCDEFGHIJK'});
+pending.ABCDEFGHIJK.resolve({audioUrl:'http://example/latest.wav'});
+b.then(()=>{pending.abcdefghijk.resolve({audioUrl:'http://example/old.wav'});return a;}).then(()=>{
+ assert.deepStrictEqual(played,['youtube2/video@videoId=ABCDEFGHIJK']);assert.strictEqual(toasts.length,0);
+ console.log('PASS: empty MPD track is safe; late video response cannot replace the latest selection');
+}).catch(error=>{console.error(error);process.exit(1);});

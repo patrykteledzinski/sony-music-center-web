@@ -1,0 +1,92 @@
+--- youtube-scrape/scraper.js.orig
++++ youtube-scrape/scraper.js
+@@ -1,56 +1,13 @@
+-const request = require('request');
++const request = require('request').defaults({timeout:15000, headers:{'User-Agent':'Mozilla/5.0'}});
+ const URL = require('url');
+ 
++// Local compatibility fix for Volumio 2 / Node 8.
++// YouTube removed searchSubMenuRenderer.groups; avoid a promise that never settles.
+ async function getFilters(query) {
+-    return new Promise((resolve, reject) => {
+-        let url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}&hl=en`;
+-        request(url, (error, response, html) => {
+-            if (!error && response.statusCode === 200) {
+-                // Get script json data from html to parse
+-                try {
+-                    let match = html.match(/ytInitialData[^{]*(.*?);\s*<\/script>/s);
+-                    if (!match) {
+-                        match = html.match(/ytInitialData"[^{]*(.*);\s*window\["ytInitialPlayerResponse"\]/s);
+-                    }
+-                    let json = JSON.parse(match[1]);
+-
+-                    // The following adapted from:
+-                    // https://github.com/TimeForANinja/node-ytsr/blob/wip-api-adjustments/lib/utils.js
+-                    const BASE_URL = 'https://www.youtube.com/';
+-                    const wrapper = json.contents.twoColumnSearchResultsRenderer.primaryContents.sectionListRenderer;
+-                    const filterWrapper = wrapper.subMenu.searchSubMenuRenderer.groups;
+-                    const parsedGroups = new Map();
+-                    for (const filterGroup of filterWrapper) {
+-                        // TODO: switch to Map when done caring about compatibility
+-                        const singleFilterGroup = [];
+-                        singleFilterGroup.active = null;
+-                        for (const filter of filterGroup.searchFilterGroupRenderer.filters) {
+-                        const isSet = !filter.searchFilterRenderer.navigationEndpoint;
+-                        let targetURL = null;
+-                        if (!isSet) targetURL = filter.searchFilterRenderer.navigationEndpoint.commandMetadata.webCommandMetadata.url;
+-                        const parsedFilter = {
+-                            description: filter.searchFilterRenderer.tooltip,
+-                            label: parseText(filter.searchFilterRenderer.label),
+-                            query: isSet ? null : URL.resolve(BASE_URL, targetURL),
+-                            isSet: isSet,
+-                            // TODO: remove when done caring about compatibility
+-                            active: isSet,
+-                            name: parseText(filter.searchFilterRenderer.label),
+-                            ref: isSet ? null : URL.resolve(BASE_URL, targetURL),
+-                        };
+-                        if (isSet) singleFilterGroup.active = parsedFilter;
+-                        singleFilterGroup.push(parsedFilter);
+-                        }
+-                        parsedGroups.set(parseText(filterGroup.searchFilterGroupRenderer.title), singleFilterGroup);
+-                    }
+-                    resolve(parsedGroups);
+-                }
+-                catch(ex) {
+-                    console.error("Failed to parse data:", ex);
+-                }
+-            }
+-        });
+-    })
++    const codes = {video:'EgIQAQ==', channel:'EgIQAg==', playlist:'EgIQAw=='};
++    const filters = Object.keys(codes).map(name => ({name:name,
++        query:'https://www.youtube.com/results?search_query='+encodeURIComponent(query)+'&sp='+encodeURIComponent(codes[name])}));
++    return new Map([['Type', filters]]);
+ }
+ function parseText(txt) {
+     return txt.simpleText || txt.runs.map(a => a.text).join('');
+@@ -119,7 +76,7 @@
+                 // Check for errors
+                 if (!error && response.statusCode === 200) {
+                     json["parser"] = "json_format";
+-                    json["key"] = html.match(/"innertubeApiKey":"([^"]*)/)[1];
++                    json["key"] = (html.match(/"(?:innertubeApiKey|INNERTUBE_API_KEY)":"([^"]*)/) || [null, null])[1];
+ 
+                     // Get script json data from html to parse
+                     let data, sectionLists = [];
+@@ -138,7 +95,7 @@
+                     }
+                     catch(ex) {
+                         console.error("Failed to parse data:", ex);
+-                        console.log(data);
++                        return reject(new Error("YouTube changed its search response; no supported results renderer found"));
+                     }
+ 
+                     // Loop through all objects and parse data according to type
+@@ -158,6 +115,7 @@
+  * @param {Object} json - The object being returned to caller
+  */
+ function parseJsonFormat(contents, json) {
++    if (!Array.isArray(contents)) return;
+     contents.forEach(sectionList => {
+         try {
+             if (sectionList.hasOwnProperty("itemSectionRenderer")) {

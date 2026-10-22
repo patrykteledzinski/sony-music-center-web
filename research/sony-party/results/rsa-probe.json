@@ -1,0 +1,9 @@
+{
+  "bytes": 50421760,
+  "decryption_performed": false,
+  "der_candidates_tested": 50063,
+  "input": "/mnt/dysk4TB/UPDATA_11X014/BD11-VUD.BIN",
+  "library": "RustCrypto/rsa 0.9.8",
+  "rsa_keys": [],
+  "scope": "Searches unencrypted DER keys only; does not rule out raw, encrypted or external keys"
+}

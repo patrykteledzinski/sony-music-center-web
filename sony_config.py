@@ -16,6 +16,8 @@ class Settings:
     state_dir: Path
     bind_host: str
     ffmpeg_binary: str | None
+    volumio_ip: str | None = None
+    volumio_port: int = 80
 
 
 def load_settings(project_dir, environ=None):
@@ -37,20 +39,22 @@ def load_settings(project_dir, environ=None):
         raise ValueError(f'Configuration does not exist: {file}')
     defaults = dict(sony_ip='192.168.1.100',sony_port=8080,server_ip='192.168.1.50',
                     web_port=8088,music_root=str(Path.home()/'Music'),state_dir='.',
-                    bind_host='0.0.0.0',ffmpeg_binary=None)
+                    bind_host='0.0.0.0',ffmpeg_binary=None,volumio_ip=None,volumio_port=80)
     unknown = set(values) - set(defaults)
     if unknown:
         raise ValueError('Unknown settings: '+', '.join(sorted(unknown)))
     for name, default in defaults.items():
         values[name] = environ.get('SONY_WEB_'+name.upper(), values.get(name, default))
-    for name in ('sony_ip','server_ip','bind_host'):
+    for name in ('sony_ip','server_ip','bind_host','volumio_ip'):
+        if name == 'volumio_ip' and values[name] is None:
+            continue
         try:
             if not isinstance(values[name], str):
                 raise ipaddress.AddressValueError('not a string')
             values[name] = str(ipaddress.IPv4Address(values[name]))
         except ipaddress.AddressValueError as exc:
             raise ValueError(f'{name} must be an IPv4 address') from exc
-    for name in ('sony_port','web_port'):
+    for name in ('sony_port','web_port','volumio_port'):
         raw = values[name]
         try:
             port = int(raw)
